@@ -6,13 +6,19 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+const (
+	screenWidth  = 640
+	screenHeight = 480
+)
+
 type game struct{}
 
+func (*game) Layout(outWidth, outHeight int) (w, h int) { return screenWidth, screenHeight }
 func (*game) Update() error                             { return nil }
 func (*game) Draw(screen *ebiten.Image)                 {}
-func (*game) Layout(outWidth, outHeight int) (w, h int) { return 320, 200 }
 
 func main() {
+	ebiten.SetWindowSize(screenWidth, screenHeight)
 	if err := ebiten.RunGame(&game{}); err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,3 @@
-// base version is in previous commit
 package main
 
 import (
@@ -82,9 +81,9 @@ func NewGame(width, height int, f font.Face) *Game {
 }
 
 func randomRect(width, height int) *coloredRect {
-	x0, y0 := rand.Intn(width), rand.Intn(height)
-	x1, y1 := rand.Intn(width-x0)+x0, rand.Intn(height-y0)+y0
-	rect, err := ebitenutil.NewImageFromURL("https://loremflickr.com/320/240/kitten/")
+	x0, y0 := rand.Intn(width)+1, rand.Intn(height)+1
+	x1, y1 := rand.Intn(width-x0)+x0+1, rand.Intn(height-y0)+y0+1
+	rect, err := ebitenutil.NewImageFromURL("https://loremflickr.com/128/128/kitten/")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,7 +1,10 @@
+// base version is in previous commit
 package main
 
 import (
 	"image/color"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
 	"math"
 	"math/rand"
@@ -12,6 +15,7 @@ import (
 	"golang.org/x/image/font/opentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
@@ -26,9 +30,9 @@ const (
 
 type coloredRect struct {
 	*ebiten.Image
-	speed int
-	pos   int
-	x, y  float64
+	speed              int
+	pos                int
+	SizeX, SizeY, x, y float64
 }
 
 type Game struct {
@@ -63,6 +67,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		w, h := r.Size()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-float64(w)/2, -float64(h)/2)
+		op.GeoM.Scale(50/r.SizeX, 50/r.SizeY)
 		op.GeoM.Rotate(float64(int(r.pos)%360) * 2 * math.Pi / 360)
 		op.GeoM.Translate(r.x, r.y)
 		screen.DrawImage(r.Image, op)
@@ -77,17 +82,20 @@ func NewGame(width, height int, f font.Face) *Game {
 }
 
 func randomRect(width, height int) *coloredRect {
-	x0, y0 := rand.Intn(width)+1, rand.Intn(height)+1
-	x1, y1 := rand.Intn(width-x0)+x0+1, rand.Intn(height-y0)+y0+1
-	rect := ebiten.NewImage(x1-x0, y1-y0)
-	rect.Fill(color.RGBA{R: uint8(rand.Intn(255)), G: uint8(rand.Intn(255)), B: uint8(rand.Intn(255)), A: uint8(rand.Intn(255))})
+	x0, y0 := rand.Intn(width), rand.Intn(height)
+	x1, y1 := rand.Intn(width-x0)+x0, rand.Intn(height-y0)+y0
+	rect, err := ebitenutil.NewImageFromURL("https://loremflickr.com/320/240/kitten/")
+	if err != nil {
+		log.Fatal(err)
+	}
+	// rect.Fill(color.RGBA{R: uint8(rand.Intn(255)), G: uint8(rand.Intn(255)), B: uint8(rand.Intn(255)), A: uint8(rand.Intn(255))})
 	var speed int
 	if rand.Intn(2) == 0 {
 		speed = rand.Intn(10) + 1
 	} else {
 		speed = (rand.Intn(10) + 1) * (-1)
 	}
-	return &coloredRect{rect, speed, 0, float64(x0), float64(y0)}
+	return &coloredRect{rect, speed, 0, float64(x1 - x0), float64(y1 - y0), float64(x0), float64(y0)}
 }
 
 func main() {

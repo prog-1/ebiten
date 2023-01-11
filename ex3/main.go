@@ -1,9 +1,9 @@
 package main
 
 import (
-	"image"
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -12,24 +12,21 @@ import (
 	"golang.org/x/image/font/opentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 )
 
 const (
-	screenWidth  = 640
-	screenHeight = 480
+	screenWidth  = 1280
+	screenHeight = 960
 
 	dpi = 72
 )
 
 type coloredRect struct {
-	image.Rectangle
-	color.RGBA
+	*ebiten.Image
 }
-
 type Game struct {
 	width, height int
 	font          font.Face
@@ -47,7 +44,7 @@ func (g *Game) Update() error {
 		os.Exit(0)
 	}
 	t := time.Now()
-	if t.Sub(g.last).Milliseconds() < 500 && !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+	if t.Sub(g.last).Milliseconds() < 1000 && !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return nil
 	}
 	g.last = t
@@ -56,12 +53,18 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	screen.Fill(color.White)
 	for _, r := range g.rect {
-		ebitenutil.DrawRect(screen, float64(r.Min.X), float64(r.Min.Y), float64(r.Dx()), float64(r.Dy()), r.RGBA)
+		w, h := r.Size()
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-float64(w)/2, -float64(h)/2)
+		op.GeoM.Rotate(float64(float64(rand.Intn(360)) * math.Pi / 180))
+		op.GeoM.Translate(float64(r.Bounds().Max.X), float64(r.Bounds().Max.Y))
+		screen.DrawImage(r.Image, op)
 	}
 	const msg = "Press Q to quit...\nClick or wait for new rectangles."
 	r := text.BoundString(g.font, msg)
-	text.Draw(screen, msg, g.font, (screen.Bounds().Dx()-r.Dx())/2, screen.Bounds().Dy()/2, color.White)
+	text.Draw(screen, msg, g.font, (screen.Bounds().Dx()-r.Dx())/2, screen.Bounds().Dy()/2, color.Black)
 }
 
 func NewGame(width, height int, f font.Face) *Game {
@@ -71,15 +74,16 @@ func NewGame(width, height int, f font.Face) *Game {
 func randomRect(width, height int) *coloredRect {
 	x0, y0 := rand.Intn(width), rand.Intn(height)
 	x1, y1 := rand.Intn(width-x0)+x0, rand.Intn(height-y0)+y0
-	rect := image.Rect(x0, y0, x1, y1)
+	rect := ebiten.NewImage(x1-x0, y1-y0)
 
 	r := uint8(rand.Intn(255))
 	g := uint8(rand.Intn(255))
 	b := uint8(rand.Intn(255))
 	a := uint8(rand.Intn(255))
 	col := color.RGBA{R: r, G: g, B: b, A: a}
+	rect.Fill(col)
 
-	return &coloredRect{rect, col}
+	return &coloredRect{rect}
 }
 
 func main() {

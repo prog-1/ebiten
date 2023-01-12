@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"golang.org/x/image/font/opentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
@@ -25,25 +25,20 @@ const (
 	dpi = 72
 )
 
-type figureType int
-
-const (
-	Rectangle figureType = iota
-	Circle
-	FigureCount
-)
-
-type Drawable interface {
-	Draw(*ebiten.Image)
-}
-
 type coloredRect struct {
 	image.Rectangle
+	//ebiten.Image
 	color.RGBA
+	op     ebiten.DrawImageOptions
+	rad    float64
+	offset image.Point
 }
 
 func (r coloredRect) Draw(screen *ebiten.Image) {
-	ebitenutil.DrawRect(screen, float64(r.Min.X), float64(r.Min.Y), float64(r.Dx()), float64(r.Dy()), r.RGBA)
+	//ebitenutil.DrawRect(screen, float64(r.Min.X), float64(r.Min.Y), float64(r.Dx()), float64(r.Dy()), r.RGBA)
+	image := ebiten.NewImage(r.Dx(), r.Dy())
+	image.Fill(r.RGBA)
+	screen.DrawImage(image, &r.op)
 }
 
 type coloredCircle struct {
@@ -51,16 +46,12 @@ type coloredCircle struct {
 	color.RGBA
 }
 
-func (c coloredCircle) Draw(screen *ebiten.Image) {
-	ebitenutil.DrawCircle(screen, c.cx, c.cy, c.r, c.RGBA)
-}
-
 type Game struct {
 	width, height int
 	font          font.Face
 
-	figures []*Drawable
-	last    time.Time
+	rects []*coloredRect
+	last  time.Time
 }
 
 func (g *Game) Layout(outWidth, outHeight int) (w, h int) {
@@ -71,20 +62,26 @@ func (g *Game) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeyQ) {
 		os.Exit(0)
 	}
+
 	t := time.Now()
 	if t.Sub(g.last).Milliseconds() < 500 && !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return nil
 	}
+	for _, r := range g.rects {
+		w, h := r.Size().X, r.Size().Y
+		r.op.GeoM.Translate(-float64(w)/2, -float64(h)/2)
+		r.op.GeoM.Rotate(math.Pi / 6)
+		r.op.GeoM.Translate(float64(r.offset.X), float64(r.offset.Y))
+		//r.rad += math.Pi / 12
+	}
 	g.last = t
-	tmp := randomFigure(g.width, g.height)
-	g.figures = append(g.figures, &tmp)
+	g.rects = append(g.rects, randomRectangle(g.width, g.height))
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	for _, f := range g.figures {
+	for _, f := range g.rects {
 		(*f).Draw(screen)
-
 	}
 	const msg = "Press Q to quit...\nClick or wait for new rectangles(or circles)."
 	r := text.BoundString(g.font, msg)
@@ -95,24 +92,19 @@ func NewGame(width, height int, f font.Face) *Game {
 	return &Game{width: width, height: height, font: f}
 }
 
-func randomFigure(width, height int) Drawable {
-	var figType figureType = figureType(rand.Intn(int(FigureCount)))
-	switch figType {
-	case Rectangle:
-		x0, y0 := rand.Intn(width), rand.Intn(height)
-		x1, y1 := rand.Intn(width-x0)+x0, rand.Intn(height-y0)+y0
-		rect := image.Rect(x0, y0, x1, y1)
-		return &coloredRect{rect, randColor()}
-
-	case Circle:
-		cx, cy := rand.Intn(width), rand.Intn(height)
-		const min, max = 2, 300
-		r := rand.Intn(max-min+1) + min
-		return &coloredCircle{float64(cx), float64(cy), float64(r), randColor()}
-
-	default:
-		panic("must not happen")
-	}
+func randomRectangle(width, height int) *coloredRect {
+	x0, y0 := rand.Intn(width), rand.Intn(height)
+	x1, y1 := rand.Intn(width-x0)+x0+1, rand.Intn(height-y0)+y0+1
+	minRadians, maxRadians := -math.Pi, math.Pi
+	radians := ((maxRadians-minRadians)*rand.Float64() + minRadians)
+	cx, cy := x1-x0, y1-y0
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(cx), float64(cy))
+	return &coloredRect{image.Rect(x0, y0, x1, y1), randColor(), *op, radians, image.Point{x0, y0}}
+	//rect := coloredRect{*ebiten.NewImage(x1-x0, y1-y0), ebiten.DrawImageOptions{}, radians}
+	//rect.Fill(randColor())
+	//return &rect
+	//// NOTE: I end up copying image, which is forbidden
 }
 
 func randColor() color.RGBA {
@@ -145,3 +137,8 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+// How to rotate?
+// We store matrix and angle inside coloredRectangle
+// In Update() rotate each of rectangle's matrices
+// In Draw() we draw rectangle using it's own matrix

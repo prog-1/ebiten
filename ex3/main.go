@@ -1,9 +1,9 @@
 package main
 
 import (
-	"image"
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -12,7 +12,6 @@ import (
 	"golang.org/x/image/font/opentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
@@ -26,7 +25,7 @@ const (
 )
 
 type coloredRect struct {
-	image.Rectangle
+	*ebiten.Image
 	color.RGBA
 }
 
@@ -57,7 +56,12 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	for _, r := range g.rect {
-		ebitenutil.DrawRect(screen, float64(r.Min.X), float64(r.Min.Y), float64(r.Dx()), float64(r.Dy()), r.RGBA)
+		t := &ebiten.DrawImageOptions{}
+		w, h := r.Size()
+		t.GeoM.Translate(-float64(w/2), -float64(h/2))
+		t.GeoM.Rotate(float64(float64(rand.Intn(360)) * math.Pi / 360))
+		t.GeoM.Translate(float64(w), float64(h))
+		screen.DrawImage(r.Image, t)
 	}
 	const msg = "Press Q to quit...\nClick or wait for new rectangles."
 	r := text.BoundString(g.font, msg)
@@ -71,13 +75,14 @@ func NewGame(width, height int, f font.Face) *Game {
 func randomRect(width, height int) *coloredRect {
 	x0, y0 := rand.Intn(width), rand.Intn(height)
 	x1, y1 := rand.Intn(width-x0)+x0, rand.Intn(height-y0)+y0
-	rect := image.Rect(x0, y0, x1, y1)
+	rect := ebiten.NewImage(x1-x0+1, y1-y0+1)
 
 	r := uint8(rand.Intn(255))
 	g := uint8(rand.Intn(255))
 	b := uint8(rand.Intn(255))
 	a := uint8(rand.Intn(255))
 	col := color.RGBA{R: r, G: g, B: b, A: a}
+	rect.Fill(col)
 
 	return &coloredRect{rect, col}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"image"
 	"image/color"
 	"log"
 	"math"
@@ -26,24 +25,13 @@ const (
 )
 
 type coloredRect struct {
-	image.Rectangle
-	//ebiten.Image
-	color.RGBA
-	op     ebiten.DrawImageOptions
-	rad    float64
-	offset image.Point
+	*ebiten.Image
+	op      *ebiten.DrawImageOptions
+	degrees float64
 }
 
 func (r coloredRect) Draw(screen *ebiten.Image) {
-	//ebitenutil.DrawRect(screen, float64(r.Min.X), float64(r.Min.Y), float64(r.Dx()), float64(r.Dy()), r.RGBA)
-	image := ebiten.NewImage(r.Dx(), r.Dy())
-	image.Fill(r.RGBA)
-	screen.DrawImage(image, &r.op)
-}
-
-type coloredCircle struct {
-	cx, cy, r float64
-	color.RGBA
+	screen.DrawImage(r.Image, r.op)
 }
 
 type Game struct {
@@ -63,19 +51,21 @@ func (g *Game) Update() error {
 		os.Exit(0)
 	}
 
+	for _, r := range g.rects {
+		w, h := r.Size()
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-float64(w)/2, -float64(h)/2)
+		op.GeoM.Rotate(r.degrees * math.Pi / 180)
+		op.GeoM.Translate(float64(r.Bounds().Max.X), float64(r.Bounds().Max.Y))
+		r.op = op
+	}
+
 	t := time.Now()
 	if t.Sub(g.last).Milliseconds() < 500 && !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return nil
 	}
-	for _, r := range g.rects {
-		w, h := r.Size().X, r.Size().Y
-		r.op.GeoM.Translate(-float64(w)/2, -float64(h)/2)
-		r.op.GeoM.Rotate(math.Pi / 6)
-		r.op.GeoM.Translate(float64(r.offset.X), float64(r.offset.Y))
-		//r.rad += math.Pi / 12
-	}
 	g.last = t
-	g.rects = append(g.rects, randomRectangle(g.width, g.height))
+	g.rects = append(g.rects, randomRect(g.width, g.height))
 	return nil
 }
 
@@ -92,19 +82,14 @@ func NewGame(width, height int, f font.Face) *Game {
 	return &Game{width: width, height: height, font: f}
 }
 
-func randomRectangle(width, height int) *coloredRect {
+func randomRect(width, height int) *coloredRect {
 	x0, y0 := rand.Intn(width), rand.Intn(height)
-	x1, y1 := rand.Intn(width-x0)+x0+1, rand.Intn(height-y0)+y0+1
-	minRadians, maxRadians := -math.Pi, math.Pi
-	radians := ((maxRadians-minRadians)*rand.Float64() + minRadians)
+	x1, y1 := rand.Intn(width-x0)+x0, rand.Intn(height-y0)+y0
+
 	cx, cy := x1-x0, y1-y0
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(cx), float64(cy))
-	return &coloredRect{image.Rect(x0, y0, x1, y1), randColor(), *op, radians, image.Point{x0, y0}}
-	//rect := coloredRect{*ebiten.NewImage(x1-x0, y1-y0), ebiten.DrawImageOptions{}, radians}
-	//rect.Fill(randColor())
-	//return &rect
-	//// NOTE: I end up copying image, which is forbidden
+	image := ebiten.NewImage(cx+1, cy+1)
+	image.Fill(randColor())
+	return &coloredRect{image, nil, 0.001}
 }
 
 func randColor() color.RGBA {
@@ -137,8 +122,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-// How to rotate?
-// We store matrix and angle inside coloredRectangle
-// In Update() rotate each of rectangle's matrices
-// In Draw() we draw rectangle using it's own matrix

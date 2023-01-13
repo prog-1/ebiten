@@ -26,8 +26,7 @@ const (
 
 type coloredRect struct {
 	*ebiten.Image
-	op      *ebiten.DrawImageOptions
-	degrees float64
+	op *ebiten.DrawImageOptions
 }
 
 func (r coloredRect) Draw(screen *ebiten.Image) {
@@ -47,6 +46,7 @@ func (g *Game) Layout(outWidth, outHeight int) (w, h int) {
 }
 
 func (g *Game) Update() error {
+	t := time.Now()
 	if ebiten.IsKeyPressed(ebiten.KeyQ) {
 		os.Exit(0)
 	}
@@ -55,12 +55,11 @@ func (g *Game) Update() error {
 		w, h := r.Size()
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-float64(w)/2, -float64(h)/2)
-		op.GeoM.Rotate(r.degrees * math.Pi / 180)
+		op.GeoM.Rotate(float64(rand.Intn(360)) * math.Pi / 180)
 		op.GeoM.Translate(float64(r.Bounds().Max.X), float64(r.Bounds().Max.Y))
 		r.op = op
 	}
 
-	t := time.Now()
 	if t.Sub(g.last).Milliseconds() < 500 && !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return nil
 	}
@@ -89,7 +88,7 @@ func randomRect(width, height int) *coloredRect {
 	cx, cy := x1-x0, y1-y0
 	image := ebiten.NewImage(cx+1, cy+1)
 	image.Fill(randColor())
-	return &coloredRect{image, nil, 0.001}
+	return &coloredRect{image, nil}
 }
 
 func randColor() color.RGBA {

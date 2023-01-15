@@ -32,7 +32,7 @@ func (g *Game) Layout(outWidth, outHeight int) (w, h int) {
 }
 
 func (*Game) Update() error {
-	if ebiten.IsKeyPressed(ebiten.KeyQ) {
+	if ebiten.IsKeyPressed(ebiten.KeyR) {
 		os.Exit(0)
 	}
 	return nil
@@ -45,7 +45,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	alpha := uint8(rand.Intn(255))
 	screen.Fill(color.RGBA{R: red, G: green, B: blue, A: alpha})
 
-	const msg = "Press Q to quit..."
+	const msg = "Press R to quit..."
 	r := text.BoundString(g.font, msg)
 	text.Draw(screen, msg, g.font, (screen.Bounds().Dx()-r.Dx())/2, screen.Bounds().Dy()/2, color.White)
 }
